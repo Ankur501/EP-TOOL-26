@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Executive Presence Assessment</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="rail" aria-label="Assessment navigation">
+        <div class="brand-mark">EP</div>
+        <nav>
+          <button class="nav-item active" data-view="record">Record</button>
+          <button class="nav-item" data-view="pipeline">Pipeline</button>
+          <button class="nav-item" data-view="dashboard">Dashboard</button>
+        </nav>
+        <div class="privacy-note">
+          <span class="dot"></span>
+          Local demo mode. Uploaded media stays in your browser.
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Executive Presence</p>
+            <h1>Video assessment cockpit</h1>
+          </div>
+          <div class="user-card">
+            <span>Ankur Dhanuka</span>
+            <select id="voiceProfile" aria-label="Voice profile">
+              <option value="unspecified">Voice profile</option>
+              <option value="male">Male reference band</option>
+              <option value="female">Female reference band</option>
+            </select>
+          </div>
+        </header>
+
+        <section class="view active" id="recordView">
+          <div class="capture-grid">
+            <section class="prompt-panel">
+              <div class="section-label">Recording prompt</div>
+              <h2>Record a ~3-minute video addressing the following three milestones:</h2>
+              <ol class="milestones">
+                <li>Introduce yourself, your professional context, and your current scope of leadership <span>(30-40 seconds)</span>.</li>
+                <li>Articulate a major strategic initiative or project you are actively driving <span>(60-90 seconds)</span>.</li>
+                <li>Tell a concrete narrative story regarding a complex leadership challenge you faced and how you resolved it <span>(60-90 seconds)</span>.</li>
+              </ol>
+              <div class="requirements">
+                <div><strong>Accepted</strong><span>.mp4, .mov</span></div>
+                <div><strong>Size</strong><span>Up to 500 MB</span></div>
+                <div><strong>Duration</strong><span>2:00 to 4:00</span></div>
+              </div>
+            </section>
+
+            <section class="capture-panel">
+              <div class="video-frame">
+                <video id="previewVideo" playsinline controls></video>
+                <div class="empty-state" id="emptyState">
+                  <div class="lens"></div>
+                  <p>Upload a leadership video or record from your camera.</p>
+                </div>
+              </div>
+
+              <div class="control-row">
+                <label class="file-button">
+                  <input id="videoInput" type="file" accept="video/mp4,video/quicktime" />
+                  Upload video
+                </label>
+                <button id="demoButton" class="secondary">Use demo sample</button>
+                <button id="recordButton" class="secondary">Start camera</button>
+                <button id="analyseButton" class="primary" disabled>Analyse</button>
+              </div>
+
+              <div class="validation-list" id="validationList">
+                <div class="validation pending">Waiting for a video file.</div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="pipelineView">
+          <section class="workbench">
+            <div class="pipeline-header">
+              <div>
+                <p class="eyebrow">Async workflow</p>
+                <h2>Processing status</h2>
+              </div>
+              <div class="score-pill" id="progressPct">0%</div>
+            </div>
+            <div class="progress-track"><span id="progressBar"></span></div>
+            <div class="stage-list" id="stageList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="dashboardView">
+          <section class="dashboard-hero">
+            <div>
+              <p class="eyebrow">Assessment report</p>
+              <h2 id="overallScore">--</h2>
+              <p id="overallSummary">Run an assessment to generate coaching feedback.</p>
+            </div>
+            <div class="radar-visual" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+          </section>
+
+          <section class="bucket-grid" id="bucketGrid"></section>
+          <section class="parameters" id="parameterGrid"></section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
