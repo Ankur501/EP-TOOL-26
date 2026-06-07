@@ -459,7 +459,7 @@ async function checkBackend() {
     qs("#backendStatus").textContent = database.connected
       ? "Supabase connected. Reports and videos are saved."
       : database.configured
-        ? `Database connection needs attention${database.error ? `: ${database.error}` : "."}`
+        ? "Supabase connected. Server database URL needs a Vercel update."
         : "Database URL missing. Reports will not save yet.";
   } catch (_error) {
     qs(".privacy-note").classList.add("warning");
@@ -472,9 +472,14 @@ async function saveAssessment(result) {
     updateSaveStatus("error", "Sign in before saving reports.");
     return;
   }
+  let metadata;
   try {
     const token = await accessToken();
     const videoStorage = await uploadUserVideo();
+    metadata = {
+      ...assessmentMetadata(),
+      ...videoStorage
+    };
     const response = await fetch("/api/assessments", {
       method: "POST",
       headers: {
@@ -482,10 +487,7 @@ async function saveAssessment(result) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        metadata: {
-          ...assessmentMetadata(),
-          ...videoStorage
-        },
+        metadata,
         result
       })
     });
@@ -499,8 +501,71 @@ async function saveAssessment(result) {
     await loadAssessmentHistory();
     checkBackend();
   } catch (error) {
-    updateSaveStatus("error", `Report generated, but it was not saved: ${error.message}`);
+    try {
+      const saved = await saveAssessmentViaSupabase(result, metadata);
+      updateSaveStatus("saved", `Saved report ${saved.id.slice(0, 8)} to Supabase.`);
+      await loadAssessmentHistory();
+    } catch (_fallbackError) {
+      updateSaveStatus("error", `Report generated, but it was not saved: ${historyErrorMessage(error.message)}`);
+    }
   }
+}
+
+async function saveAssessmentViaSupabase(result, existingMetadata) {
+  if (!state.supabase || !state.user) throw new Error("Sign in before saving reports.");
+  const metadata = existingMetadata || {
+    ...assessmentMetadata(),
+    ...(await uploadUserVideo())
+  };
+  const id = crypto.randomUUID();
+  const assessment = {
+    id,
+    user_id: state.user.id,
+    participant_name: metadata.participantName || state.user.displayName || state.user.email,
+    voice_profile: metadata.voiceProfile || "unspecified",
+    source_kind: metadata.sourceKind || "upload",
+    file_name: metadata.fileName || null,
+    file_type: metadata.fileType || null,
+    file_size_bytes: Number.isFinite(metadata.fileSize) ? metadata.fileSize : null,
+    video_bucket: metadata.videoBucket || null,
+    video_path: metadata.videoPath || null,
+    video_uploaded_at: metadata.videoPath ? new Date().toISOString() : null,
+    duration_seconds: Number.isFinite(metadata.duration) ? metadata.duration : null,
+    overall_score: Number(result.overall),
+    summary: String(result.summary || "")
+  };
+
+  updateSaveStatus("pending", "Saving report through Supabase.");
+  const { error: assessmentError } = await state.supabase.from("ep_assessments").insert(assessment);
+  if (assessmentError) throw assessmentError;
+
+  const bucketRows = (result.buckets || []).map(([name, score, description]) => ({
+    assessment_id: id,
+    bucket_name: String(name),
+    score: Number(score),
+    description: String(description || "")
+  }));
+  if (bucketRows.length) {
+    const { error } = await state.supabase.from("ep_bucket_scores").insert(bucketRows);
+    if (error) throw error;
+  }
+
+  const parameterRows = (result.params || []).map((param) => ({
+    assessment_id: id,
+    parameter_id: String(param.id),
+    bucket_name: String(param.bucket),
+    parameter_name: String(param.name),
+    score: Number(param.score),
+    metric: String(param.metric || ""),
+    reference_text: String(param.reference || ""),
+    coaching_text: String(param.coaching || "")
+  }));
+  if (parameterRows.length) {
+    const { error } = await state.supabase.from("ep_parameter_scores").insert(parameterRows);
+    if (error) throw error;
+  }
+
+  return { id };
 }
 
 async function loadAssessmentHistory() {

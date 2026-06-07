@@ -146,6 +146,8 @@ CREATE INDEX IF NOT EXISTS ep_parameter_scores_bucket_idx
   ON ep_parameter_scores (bucket_name);
 
 ALTER TABLE ep_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ep_bucket_scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ep_parameter_scores ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
@@ -160,5 +162,94 @@ BEGIN
       FOR SELECT
       TO authenticated
       USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ep_assessments'
+      AND policyname = 'ep_assessments_insert_own_rows'
+  ) THEN
+    CREATE POLICY ep_assessments_insert_own_rows
+      ON ep_assessments
+      FOR INSERT
+      TO authenticated
+      WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ep_bucket_scores'
+      AND policyname = 'ep_bucket_scores_select_own_rows'
+  ) THEN
+    CREATE POLICY ep_bucket_scores_select_own_rows
+      ON ep_bucket_scores
+      FOR SELECT
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM ep_assessments
+          WHERE ep_assessments.id = ep_bucket_scores.assessment_id
+            AND ep_assessments.user_id = auth.uid()
+        )
+      );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ep_bucket_scores'
+      AND policyname = 'ep_bucket_scores_insert_own_rows'
+  ) THEN
+    CREATE POLICY ep_bucket_scores_insert_own_rows
+      ON ep_bucket_scores
+      FOR INSERT
+      TO authenticated
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM ep_assessments
+          WHERE ep_assessments.id = ep_bucket_scores.assessment_id
+            AND ep_assessments.user_id = auth.uid()
+        )
+      );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ep_parameter_scores'
+      AND policyname = 'ep_parameter_scores_select_own_rows'
+  ) THEN
+    CREATE POLICY ep_parameter_scores_select_own_rows
+      ON ep_parameter_scores
+      FOR SELECT
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM ep_assessments
+          WHERE ep_assessments.id = ep_parameter_scores.assessment_id
+            AND ep_assessments.user_id = auth.uid()
+        )
+      );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ep_parameter_scores'
+      AND policyname = 'ep_parameter_scores_insert_own_rows'
+  ) THEN
+    CREATE POLICY ep_parameter_scores_insert_own_rows
+      ON ep_parameter_scores
+      FOR INSERT
+      TO authenticated
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM ep_assessments
+          WHERE ep_assessments.id = ep_parameter_scores.assessment_id
+            AND ep_assessments.user_id = auth.uid()
+        )
+      );
   END IF;
 END $$;
