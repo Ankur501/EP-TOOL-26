@@ -70,6 +70,12 @@ const state = {
   authMode: "signup"
 };
 
+const fallbackSupabaseConfig = {
+  supabaseUrl: "https://xfrurdrgvkeopemzevtk.supabase.co",
+  supabaseAnonKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmcnVyZHJndmtlb3BlbXpldnRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjU4MzgsImV4cCI6MjA5NjQwMTgzOH0.k7-Je57rFD5FnuNh9qNS4OxeSYuuodv-TNocYhUuvTs"
+};
+
 const qs = (selector) => document.querySelector(selector);
 const qsa = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -123,9 +129,7 @@ async function configureSupabaseAuth() {
   if (state.supabase) return;
   if (!window.supabase?.createClient) throw new Error("Supabase Auth client did not load.");
 
-  const response = await fetch("/api/auth/config");
-  if (!response.ok) throw new Error("Auth config is not available.");
-  const config = await response.json();
+  const config = await loadAuthConfig();
   state.authConfigured = Boolean(config.configured);
   if (!state.authConfigured) throw new Error("Supabase Auth environment variables are missing.");
 
@@ -145,6 +149,19 @@ async function configureSupabaseAuth() {
       showLanding();
     }
   });
+}
+
+async function loadAuthConfig() {
+  try {
+    const response = await fetch("/api/auth/config");
+    if (response.ok) return response.json();
+  } catch (_error) {
+    // Fall back to public Supabase Auth config for static deployments.
+  }
+  return {
+    configured: true,
+    ...fallbackSupabaseConfig
+  };
 }
 
 function showApp(user) {
