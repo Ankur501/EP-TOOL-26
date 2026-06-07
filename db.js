@@ -39,6 +39,11 @@ async function listAssessments(userId, limit = 10) {
        voice_profile,
        source_kind,
        file_name,
+       file_type,
+       file_size_bytes,
+       video_bucket,
+       video_path,
+       video_uploaded_at,
        duration_seconds,
        overall_score,
        summary
@@ -72,11 +77,14 @@ async function saveAssessment(payload, user) {
          file_name,
          file_type,
          file_size_bytes,
+         video_bucket,
+         video_path,
+         video_uploaded_at,
          duration_seconds,
          overall_score,
          summary
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         id,
         user.id,
@@ -86,6 +94,9 @@ async function saveAssessment(payload, user) {
         metadata.fileName || null,
         metadata.fileType || null,
         Number.isFinite(metadata.fileSize) ? metadata.fileSize : null,
+        metadata.videoBucket || null,
+        metadata.videoPath || null,
+        metadata.videoPath ? new Date() : null,
         Number.isFinite(metadata.duration) ? metadata.duration : null,
         toScore(result.overall),
         String(result.summary || "")

@@ -1,6 +1,7 @@
 const MAX_BYTES = 500 * 1024 * 1024;
 const MIN_SECONDS = 120;
 const MAX_SECONDS = 240;
+const VIDEO_BUCKET = "ep-user-videos";
 
 const stages = [
   ["extracting", "Media extraction", "Demux audio and sample visual frames at 2 FPS."],
@@ -468,6 +469,7 @@ async function saveAssessment(result) {
   }
   try {
     const token = await accessToken();
+    const videoStorage = await uploadUserVideo();
     const response = await fetch("/api/assessments", {
       method: "POST",
       headers: {
@@ -475,7 +477,10 @@ async function saveAssessment(result) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        metadata: assessmentMetadata(),
+        metadata: {
+          ...assessmentMetadata(),
+          ...videoStorage
+        },
         result
       })
     });
@@ -490,6 +495,26 @@ async function saveAssessment(result) {
   } catch (error) {
     updateSaveStatus("error", `Report generated, but it was not saved: ${error.message}`);
   }
+}
+
+async function uploadUserVideo() {
+  if (!state.file || state.sourceKind === "demo") return {};
+  if (!state.supabase || !state.user) throw new Error("Sign in before uploading videos.");
+
+  updateSaveStatus("pending", "Uploading video to Supabase Storage.");
+  const path = `${state.user.id}/${Date.now()}-${crypto.randomUUID()}-${safeStorageName(state.file.name)}`;
+  const { error } = await state.supabase.storage.from(VIDEO_BUCKET).upload(path, state.file, {
+    cacheControl: "3600",
+    contentType: state.file.type || "video/mp4",
+    upsert: false
+  });
+
+  if (error) throw new Error(`Video upload failed: ${error.message}`);
+  updateSaveStatus("pending", "Video uploaded. Saving assessment report.");
+  return {
+    videoBucket: VIDEO_BUCKET,
+    videoPath: path
+  };
 }
 
 async function accessToken() {
@@ -510,6 +535,15 @@ function assessmentMetadata() {
     fileSize: file?.size || 0,
     duration: state.duration || null
   };
+}
+
+function safeStorageName(name) {
+  const clean = String(name || "assessment-video.mp4")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return clean || "assessment-video.mp4";
 }
 
 function updateSaveStatus(kind, text) {

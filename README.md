@@ -28,6 +28,8 @@ The server creates these report tables automatically on startup:
 - `ep_bucket_scores`
 - `ep_parameter_scores`
 
+It also creates a private Supabase Storage bucket named `ep-user-videos`. Videos are stored under the signed-in user's Supabase Auth ID, and bucket policies restrict access to that user's own folder.
+
 The app opens on a public landing page. Users create accounts and sign in through Supabase Auth. Report APIs require a valid Supabase access token.
 
 For hosted auth redirects, add these callback URLs in Supabase Auth:
@@ -40,6 +42,7 @@ For hosted auth redirects, add these callback URLs in Supabase Auth:
 - Professional landing page and Supabase Auth access layer.
 - Recording prompt and video validation for MP4/MOV, 500 MB max, 2:00-4:00 duration.
 - Upload, camera, and demo-sample entry points.
+- Supabase Storage upload for user-uploaded and camera-recorded videos.
 - Simulated async processing stages.
 - Deterministic local scoring for all 21 PRD parameters.
 - Bucket dashboard and two-sentence coaching guidance per parameter.
