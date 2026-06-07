@@ -4,10 +4,82 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Executive Presence Assessment</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=auth-1" />
   </head>
-  <body>
-    <div class="app-shell">
+  <body class="auth-loading">
+    <section class="landing-page" id="landingPage">
+      <header class="landing-nav">
+        <div class="brand-row">
+          <div class="brand-mark">EP</div>
+          <span>Executive Presence</span>
+        </div>
+        <button class="secondary" id="navSignIn">Sign in</button>
+      </header>
+
+      <section class="landing-hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <p class="eyebrow">Leadership communication intelligence</p>
+          <h1>Executive Presence Assessment</h1>
+          <p class="hero-copy">Turn a short leadership video into structured coaching across communication, nonverbal presence, and storytelling.</p>
+          <div class="hero-actions">
+            <button class="primary" id="heroCreateAccount">Create account</button>
+            <button class="ghost" id="heroSignIn">Sign in</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-band" aria-label="Product capabilities">
+        <div>
+          <p class="eyebrow">Assessment model</p>
+          <h2>Built for repeatable executive coaching workflows.</h2>
+        </div>
+        <div class="feature-strip">
+          <article>
+            <strong>21 parameters</strong>
+            <span>Speech, posture, gaze, gesture, and narrative scoring.</span>
+          </article>
+          <article>
+            <strong>Private media</strong>
+            <span>Videos stay in the browser; report data saves to Postgres.</span>
+          </article>
+          <article>
+            <strong>Progress history</strong>
+            <span>Authenticated reports are attached to each user account.</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="auth-panel" id="authPanel" aria-label="Authentication">
+        <div class="auth-copy">
+          <p class="eyebrow">Secure access</p>
+          <h2 id="authTitle">Create your workspace</h2>
+          <p id="authSubtitle">Use your email and a password to start saving assessment reports.</p>
+        </div>
+        <form id="authForm" class="auth-form">
+          <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+            <button type="button" class="active" id="signupMode">Create account</button>
+            <button type="button" id="loginMode">Sign in</button>
+          </div>
+          <label id="nameField">
+            Name
+            <input id="authName" autocomplete="name" placeholder="Your name" />
+          </label>
+          <label>
+            Email
+            <input id="authEmail" type="email" autocomplete="email" placeholder="you@company.com" required />
+          </label>
+          <label>
+            Password
+            <input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 8 characters" required minlength="8" />
+          </label>
+          <button class="primary" id="authSubmit" type="submit">Create account</button>
+          <p class="auth-message" id="authMessage" role="status"></p>
+        </form>
+      </section>
+    </section>
+
+    <div class="app-shell" id="appShell">
       <aside class="rail" aria-label="Assessment navigation">
         <div class="brand-mark">EP</div>
         <nav>
@@ -17,7 +89,7 @@
         </nav>
         <div class="privacy-note">
           <span class="dot"></span>
-          Local demo mode. Uploaded media stays in your browser.
+          <span id="backendStatus">Checking database connection.</span>
         </div>
       </aside>
 
@@ -28,12 +100,13 @@
             <h1>Video assessment cockpit</h1>
           </div>
           <div class="user-card">
-            <span>Ankur Dhanuka</span>
+            <span id="userName">Signed in</span>
             <select id="voiceProfile" aria-label="Voice profile">
               <option value="unspecified">Voice profile</option>
               <option value="male">Male reference band</option>
               <option value="female">Female reference band</option>
             </select>
+            <button class="secondary compact" id="logoutButton">Sign out</button>
           </div>
         </header>
 
@@ -100,6 +173,7 @@
               <p class="eyebrow">Assessment report</p>
               <h2 id="overallScore">--</h2>
               <p id="overallSummary">Run an assessment to generate coaching feedback.</p>
+              <p class="save-status" id="saveStatus">Completed reports save to Supabase Postgres.</p>
             </div>
             <div class="radar-visual" aria-hidden="true">
               <span></span><span></span><span></span>
@@ -112,6 +186,6 @@
       </main>
     </div>
 
-    <script src="./app.js"></script>
+    <script src="./app.js?v=auth-1"></script>
   </body>
 </html>

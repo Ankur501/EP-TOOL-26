@@ -23,10 +23,219 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+body.authenticated .landing-page,
+body:not(.authenticated) .app-shell {
+  display: none;
+}
+
+body.auth-loading .landing-page,
+body.auth-loading .app-shell {
+  display: none;
+}
+
 button,
 input,
 select {
   font: inherit;
+}
+
+.landing-page {
+  min-height: 100vh;
+  background: #f7f4ee;
+}
+
+.landing-nav {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 32px;
+  color: white;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+}
+
+.landing-nav .brand-mark {
+  background: white;
+  color: var(--ink);
+}
+
+.landing-hero {
+  position: relative;
+  min-height: 88vh;
+  display: flex;
+  align-items: center;
+  padding: 108px 7vw 96px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(13, 19, 16, 0.84) 0%, rgba(13, 19, 16, 0.68) 42%, rgba(13, 19, 16, 0.28) 100%),
+    url("./executive-presence-preview.png") center / cover no-repeat;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: auto 0 0;
+  height: 32%;
+  background: linear-gradient(180deg, transparent, #f7f4ee);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  color: white;
+}
+
+.hero-content .eyebrow {
+  color: #f0c15a;
+}
+
+.hero-content h1 {
+  font-size: clamp(46px, 8vw, 92px);
+  line-height: 0.96;
+  max-width: 760px;
+}
+
+.hero-copy {
+  max-width: 620px;
+  margin: 22px 0 30px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 19px;
+  line-height: 1.48;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ghost {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.42);
+  color: white;
+}
+
+.landing-band {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(420px, 1.2fr);
+  gap: 28px;
+  align-items: start;
+  padding: 38px 7vw 46px;
+}
+
+.landing-band h2 {
+  max-width: 560px;
+}
+
+.feature-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.feature-strip article {
+  border-top: 3px solid var(--accent);
+  padding-top: 14px;
+}
+
+.feature-strip strong,
+.feature-strip span {
+  display: block;
+}
+
+.feature-strip span {
+  margin-top: 7px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.auth-panel {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(360px, 0.58fr);
+  gap: 42px;
+  align-items: start;
+  padding: 18px 7vw 70px;
+}
+
+.auth-copy h2 {
+  max-width: 520px;
+}
+
+.auth-copy p:not(.eyebrow) {
+  max-width: 560px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: var(--shadow);
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #eef1ee;
+}
+
+.auth-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.auth-tabs button.active {
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 6px 18px rgba(23, 32, 26, 0.08);
+}
+
+.auth-form label {
+  display: grid;
+  gap: 7px;
+  color: #2b352e;
+  font-weight: 700;
+}
+
+.auth-form input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: white;
+}
+
+.auth-message {
+  min-height: 20px;
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.auth-message.error {
+  color: #8d3025;
+}
+
+.auth-message.success {
+  color: #17583f;
 }
 
 .app-shell {
@@ -85,6 +294,14 @@ select {
   color: var(--muted);
   line-height: 1.4;
   font-size: 13px;
+}
+
+.privacy-note.connected {
+  color: #17583f;
+}
+
+.privacy-note.warning {
+  color: #8d3025;
 }
 
 .dot {
@@ -302,6 +519,10 @@ button {
   background: #fbfbfa;
 }
 
+.compact {
+  padding: 8px 10px;
+}
+
 .validation-list {
   display: grid;
   gap: 8px;
@@ -392,6 +613,20 @@ button {
 .dashboard-hero {
   padding: 26px;
   margin-bottom: 20px;
+}
+
+.save-status {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 0;
+}
+
+.save-status.saved {
+  color: #17583f;
+}
+
+.save-status.error {
+  color: #8d3025;
 }
 
 #overallScore {
@@ -499,8 +734,14 @@ button {
 @media (max-width: 980px) {
   .app-shell,
   .capture-grid,
+  .landing-band,
+  .auth-panel,
   .bucket-grid,
   .parameters {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-strip {
     grid-template-columns: 1fr;
   }
 
@@ -517,6 +758,25 @@ button {
 }
 
 @media (max-width: 640px) {
+  .landing-nav {
+    padding: 18px;
+  }
+
+  .landing-hero {
+    min-height: 82vh;
+    padding: 96px 18px 76px;
+  }
+
+  .hero-content h1 {
+    font-size: 44px;
+  }
+
+  .landing-band,
+  .auth-panel {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
   main {
     padding: 18px;
   }

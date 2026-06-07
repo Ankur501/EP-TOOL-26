@@ -3,7 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "python3 -m http.server 4173",
-    "check": "node --check app.js"
+    "start": "node server.js",
+    "serve:static": "python3 -m http.server 4173",
+    "check": "node --check app.js && node --check server.js && node --check db.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.21.0"
   }
 }

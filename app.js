@@ -61,8 +61,11 @@ const refs = {
 const state = {
   file: null,
   duration: null,
+  sourceKind: null,
   mediaRecorder: null,
-  recordedChunks: []
+  recordedChunks: [],
+  user: null,
+  authMode: "signup"
 };
 
 const qs = (selector) => document.querySelector(selector);
@@ -71,6 +74,14 @@ const qsa = (selector) => Array.from(document.querySelectorAll(selector));
 qsa(".nav-item").forEach((button) => {
   button.addEventListener("click", () => showView(button.dataset.view));
 });
+
+qs("#navSignIn").addEventListener("click", () => focusAuth("login"));
+qs("#heroSignIn").addEventListener("click", () => focusAuth("login"));
+qs("#heroCreateAccount").addEventListener("click", () => focusAuth("signup"));
+qs("#signupMode").addEventListener("click", () => setAuthMode("signup"));
+qs("#loginMode").addEventListener("click", () => setAuthMode("login"));
+qs("#authForm").addEventListener("submit", handleAuthSubmit);
+qs("#logoutButton").addEventListener("click", logout);
 
 qs("#videoInput").addEventListener("change", (event) => {
   const file = event.target.files[0];
@@ -90,6 +101,100 @@ qs("#recordButton").addEventListener("click", async () => {
 
 qs("#analyseButton").addEventListener("click", runAssessment);
 
+async function initAuth() {
+  setAuthMessage("");
+  try {
+    const response = await fetch("/api/auth/session");
+    if (!response.ok) throw new Error("Session check failed.");
+    const session = await response.json();
+    if (session.authenticated) {
+      showApp(session.user);
+      return;
+    }
+  } catch (_error) {
+    setAuthMessage("Sign in to connect the assessment cockpit.", "error");
+  }
+  showLanding();
+}
+
+function showApp(user) {
+  state.user = user;
+  qs("#userName").textContent = user.displayName;
+  document.body.classList.remove("auth-loading");
+  document.body.classList.add("authenticated");
+  checkBackend();
+}
+
+function showLanding() {
+  state.user = null;
+  document.body.classList.remove("auth-loading", "authenticated");
+}
+
+function focusAuth(mode) {
+  setAuthMode(mode);
+  qs("#authPanel").scrollIntoView({ behavior: "smooth", block: "center" });
+  setTimeout(() => qs(mode === "signup" ? "#authName" : "#authEmail").focus(), 250);
+}
+
+function setAuthMode(mode) {
+  state.authMode = mode;
+  const signup = mode === "signup";
+  qs("#signupMode").classList.toggle("active", signup);
+  qs("#loginMode").classList.toggle("active", !signup);
+  qs("#nameField").style.display = signup ? "grid" : "none";
+  qs("#authName").required = signup;
+  qs("#authPassword").autocomplete = signup ? "new-password" : "current-password";
+  qs("#authTitle").textContent = signup ? "Create your workspace" : "Welcome back";
+  qs("#authSubtitle").textContent = signup
+    ? "Use your email and a password to start saving assessment reports."
+    : "Sign in to continue to your assessment cockpit.";
+  qs("#authSubmit").textContent = signup ? "Create account" : "Sign in";
+  setAuthMessage("");
+}
+
+async function handleAuthSubmit(event) {
+  event.preventDefault();
+  const endpoint = state.authMode === "signup" ? "/api/auth/signup" : "/api/auth/login";
+  const payload = {
+    email: qs("#authEmail").value,
+    password: qs("#authPassword").value
+  };
+  if (state.authMode === "signup") payload.displayName = qs("#authName").value;
+
+  qs("#authSubmit").disabled = true;
+  setAuthMessage(state.authMode === "signup" ? "Creating your workspace..." : "Signing you in...");
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "Authentication failed.");
+    setAuthMessage("Signed in. Opening your cockpit.", "success");
+    showApp(body.user);
+  } catch (error) {
+    setAuthMessage(error.message, "error");
+  } finally {
+    qs("#authSubmit").disabled = false;
+  }
+}
+
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" });
+  showView("record");
+  showLanding();
+  setAuthMode("login");
+  setAuthMessage("Signed out.", "success");
+}
+
+function setAuthMessage(text, kind = "") {
+  const message = qs("#authMessage");
+  message.classList.remove("error", "success");
+  if (kind) message.classList.add(kind);
+  message.textContent = text;
+}
+
 function showView(name) {
   qsa(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.view === name));
   qsa(".view").forEach((view) => view.classList.remove("active"));
@@ -98,6 +203,7 @@ function showView(name) {
 
 function loadVideo(file) {
   state.file = file;
+  state.sourceKind = "upload";
   const video = qs("#previewVideo");
   const url = URL.createObjectURL(file);
   video.src = url;
@@ -111,6 +217,7 @@ function loadVideo(file) {
 function loadDemoSample() {
   state.file = new File(["executive-presence-demo"], "leadership-update-demo.mp4", { type: "video/mp4" });
   state.duration = 182;
+  state.sourceKind = "demo";
   const video = qs("#previewVideo");
   video.removeAttribute("src");
   video.load();
@@ -159,6 +266,7 @@ async function startCameraRecording() {
     const blob = new Blob(state.recordedChunks, { type: "video/webm" });
     state.file = new File([blob], "recorded-assessment.mp4", { type: "video/mp4" });
     state.duration = Math.max(120, Math.min(240, Math.round(blob.size / 42000)));
+    state.sourceKind = "camera";
     video.srcObject = null;
     video.controls = true;
     video.src = URL.createObjectURL(blob);
@@ -169,7 +277,13 @@ async function startCameraRecording() {
 }
 
 function runAssessment() {
+  if (!state.user) {
+    showLanding();
+    focusAuth("login");
+    return;
+  }
   showView("pipeline");
+  updateSaveStatus("pending", "Assessment running. Results will save when the report is ready.");
   renderStages(0);
   const steps = [12, 35, 62, 82, 100];
   steps.forEach((pct, index) => {
@@ -178,6 +292,7 @@ function runAssessment() {
       if (pct === 100) {
         const result = buildResult();
         renderDashboard(result);
+        saveAssessment(result);
         setTimeout(() => showView("dashboard"), 600);
       }
     }, 700 + index * 850);
@@ -204,7 +319,10 @@ function buildResult() {
   const params = parameterMeta.map(([id, bucket, name], index) => {
     const score = clamp(58 + seeded(seed, index) * 38 + durationLift(), 35, 98);
     const metric = metricText(id, score, seed + index);
-    return { id, bucket, name, score: Math.round(score), metric };
+    const param = { id, bucket, name, score: Math.round(score), metric, reference: refs[id] };
+    param.coaching = coachingTip(param);
+    param.observation = observation(param);
+    return param;
   });
 
   const comm = average(params.filter((p) => p.bucket === "Communication"));
@@ -227,6 +345,7 @@ function buildResult() {
 function renderDashboard(result) {
   qs("#overallScore").textContent = `${result.overall}/100`;
   qs("#overallSummary").textContent = result.summary;
+  updateSaveStatus("pending", "Saving this completed report to Supabase Postgres.");
   qs("#bucketGrid").innerHTML = result.buckets.map(([name, score, text]) => `
     <article class="bucket-card">
       <div class="parameter-top"><h3>${name}</h3><div class="parameter-score">${score}</div></div>
@@ -245,9 +364,77 @@ function renderDashboard(result) {
         <div class="parameter-score">${p.score}</div>
       </div>
       <div class="meter"><span style="width:${p.score}%"></span></div>
-      <p>${observation(p)} ${coachingTip(p)}</p>
+      <p>${p.observation || observation(p)} ${p.coaching || coachingTip(p)}</p>
     </article>
   `).join("");
+}
+
+async function checkBackend() {
+  try {
+    const response = await fetch("/api/health");
+    if (!response.ok) throw new Error("Health check failed.");
+    const { database } = await response.json();
+    const note = qs(".privacy-note");
+    note.classList.toggle("connected", Boolean(database.connected));
+    note.classList.toggle("warning", !database.connected);
+    qs("#backendStatus").textContent = database.connected
+      ? "Supabase connected. Videos stay local; reports are saved."
+      : database.configured
+        ? "Database configured, but connection needs attention."
+        : "Database URL missing. Reports will not save yet.";
+  } catch (_error) {
+    qs(".privacy-note").classList.add("warning");
+    qs("#backendStatus").textContent = "Backend not reachable. Start the server to save reports.";
+  }
+}
+
+async function saveAssessment(result) {
+  if (!state.user) {
+    updateSaveStatus("error", "Sign in before saving reports.");
+    return;
+  }
+  try {
+    const response = await fetch("/api/assessments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        metadata: assessmentMetadata(),
+        result
+      })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      showLanding();
+      focusAuth("login");
+    }
+    if (!response.ok) throw new Error(body.error || "Save failed.");
+    updateSaveStatus("saved", `Saved report ${body.id.slice(0, 8)} to Supabase.`);
+    checkBackend();
+  } catch (error) {
+    updateSaveStatus("error", `Report generated, but it was not saved: ${error.message}`);
+  }
+}
+
+function assessmentMetadata() {
+  const file = state.file;
+  return {
+    participantName: state.user?.displayName || qs("#userName")?.textContent?.trim() || "Signed in user",
+    voiceProfile: qs("#voiceProfile").value,
+    sourceKind: state.sourceKind || "upload",
+    fileName: file?.name || null,
+    fileType: file?.type || null,
+    fileSize: file?.size || 0,
+    duration: state.duration || null
+  };
+}
+
+function updateSaveStatus(kind, text) {
+  const status = qs("#saveStatus");
+  if (!status) return;
+  status.classList.remove("saved", "error");
+  if (kind === "saved") status.classList.add("saved");
+  if (kind === "error") status.classList.add("error");
+  status.textContent = text;
 }
 
 function observation(p) {
@@ -337,3 +524,5 @@ function bandLabel(score) {
 }
 
 renderStages(0);
+setAuthMode("signup");
+initAuth();
