@@ -30,7 +30,7 @@ The server creates these report tables automatically on startup:
 
 It also creates a private Supabase Storage bucket named `ep-user-videos`. Videos are stored under the signed-in user's Supabase Auth ID, and bucket policies restrict access to that user's own folder.
 
-The app opens on a public landing page. Users create accounts and sign in through Supabase Auth. Report APIs require a valid Supabase access token.
+The app opens on a public landing page. Users create accounts and sign in through Supabase Auth. Report APIs require a valid Supabase access token, and each user sees their own saved assessment history in the app.
 
 For hosted auth redirects, add these callback URLs in Supabase Auth:
 
@@ -47,5 +47,6 @@ For hosted auth redirects, add these callback URLs in Supabase Auth:
 - Deterministic local scoring for all 21 PRD parameters.
 - Bucket dashboard and two-sentence coaching guidance per parameter.
 - Supabase Postgres persistence for completed assessment reports.
+- Per-user assessment history inside the authenticated app.
 
 The demo does not upload media or call AI services. It stores report data in Postgres, while uploaded video files remain local to the browser.

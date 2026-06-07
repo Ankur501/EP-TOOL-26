@@ -66,6 +66,7 @@ const state = {
   mediaRecorder: null,
   recordedChunks: [],
   user: null,
+  history: [],
   supabase: null,
   authConfigured: false,
   authMode: "signup"
@@ -91,6 +92,7 @@ qs("#signupMode").addEventListener("click", () => setAuthMode("signup"));
 qs("#loginMode").addEventListener("click", () => setAuthMode("login"));
 qs("#authForm").addEventListener("submit", handleAuthSubmit);
 qs("#logoutButton").addEventListener("click", logout);
+qs("#refreshHistoryButton").addEventListener("click", loadAssessmentHistory);
 
 qs("#videoInput").addEventListener("change", (event) => {
   const file = event.target.files[0];
@@ -171,10 +173,13 @@ function showApp(user) {
   document.body.classList.remove("auth-loading");
   document.body.classList.add("authenticated");
   checkBackend();
+  loadAssessmentHistory();
 }
 
 function showLanding() {
   state.user = null;
+  state.history = [];
+  renderHistory();
   document.body.classList.remove("auth-loading", "authenticated");
 }
 
@@ -491,10 +496,66 @@ async function saveAssessment(result) {
     }
     if (!response.ok) throw new Error(body.error || "Save failed.");
     updateSaveStatus("saved", `Saved report ${body.id.slice(0, 8)} to Supabase.`);
+    await loadAssessmentHistory();
     checkBackend();
   } catch (error) {
     updateSaveStatus("error", `Report generated, but it was not saved: ${error.message}`);
   }
+}
+
+async function loadAssessmentHistory() {
+  if (!state.user) {
+    state.history = [];
+    renderHistory();
+    return;
+  }
+
+  try {
+    const token = await accessToken();
+    const response = await fetch("/api/assessments?limit=12", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "Could not load report history.");
+    state.history = body.assessments || [];
+    renderHistory();
+  } catch (error) {
+    qs("#historyList").innerHTML = `<div class="history-empty error">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderHistory() {
+  const list = qs("#historyList");
+  if (!list) return;
+
+  if (!state.history.length) {
+    list.innerHTML = `<div class="history-empty">No saved assessments yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = state.history.map((item) => {
+    const date = new Date(item.created_at).toLocaleString([], {
+      dateStyle: "medium",
+      timeStyle: "short"
+    });
+    const source = item.source_kind === "camera" ? "Camera recording" : item.source_kind === "demo" ? "Demo sample" : "Uploaded video";
+    const videoState = item.video_path ? "Video stored" : item.source_kind === "demo" ? "No video for demo" : "Video not stored";
+    return `
+      <article class="history-card">
+        <div class="history-main">
+          <p class="eyebrow">${escapeHtml(source)}</p>
+          <h3>${escapeHtml(item.file_name || "Assessment report")}</h3>
+          <p>${escapeHtml(item.summary || "Report saved.")}</p>
+          <div class="history-meta">
+            <span>${escapeHtml(date)}</span>
+            <span>${escapeHtml(formatTime(Number(item.duration_seconds)))}</span>
+            <span>${escapeHtml(videoState)}</span>
+          </div>
+        </div>
+        <div class="history-score">${Number(item.overall_score) || 0}</div>
+      </article>
+    `;
+  }).join("");
 }
 
 async function uploadUserVideo() {
@@ -544,6 +605,15 @@ function safeStorageName(name) {
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return clean || "assessment-video.mp4";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function updateSaveStatus(kind, text) {

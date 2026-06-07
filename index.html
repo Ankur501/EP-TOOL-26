@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Executive Presence Assessment</title>
-    <link rel="stylesheet" href="./styles.css?v=auth-1" />
+    <link rel="stylesheet" href="./styles.css?v=history-1" />
   </head>
   <body class="auth-loading">
     <section class="landing-page" id="landingPage">
@@ -86,6 +86,7 @@
           <button class="nav-item active" data-view="record">Record</button>
           <button class="nav-item" data-view="pipeline">Pipeline</button>
           <button class="nav-item" data-view="dashboard">Dashboard</button>
+          <button class="nav-item" data-view="history">History</button>
         </nav>
         <div class="privacy-note">
           <span class="dot"></span>
@@ -183,10 +184,25 @@
           <section class="bucket-grid" id="bucketGrid"></section>
           <section class="parameters" id="parameterGrid"></section>
         </section>
+
+        <section class="view" id="historyView">
+          <section class="workbench">
+            <div class="pipeline-header">
+              <div>
+                <p class="eyebrow">Saved reports</p>
+                <h2>Assessment history</h2>
+              </div>
+              <button class="secondary compact" id="refreshHistoryButton">Refresh</button>
+            </div>
+            <div class="history-list" id="historyList">
+              <div class="history-empty">Sign in and run an assessment to build your history.</div>
+            </div>
+          </section>
+        </section>
       </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=supabase-auth-1"></script>
+    <script src="./app.js?v=history-1"></script>
   </body>
 </html>
