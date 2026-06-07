@@ -65,6 +65,8 @@ const state = {
   mediaRecorder: null,
   recordedChunks: [],
   user: null,
+  supabase: null,
+  authConfigured: false,
   authMode: "signup"
 };
 
@@ -104,17 +106,45 @@ qs("#analyseButton").addEventListener("click", runAssessment);
 async function initAuth() {
   setAuthMessage("");
   try {
-    const response = await fetch("/api/auth/session");
-    if (!response.ok) throw new Error("Session check failed.");
-    const session = await response.json();
-    if (session.authenticated) {
-      showApp(session.user);
+    await configureSupabaseAuth();
+    const { data } = await state.supabase.auth.getSession();
+    if (data.session) {
+      showApp(toAppUser(data.session.user));
+      cleanAuthUrl();
       return;
     }
   } catch (_error) {
-    setAuthMessage("Sign in to connect the assessment cockpit.", "error");
+    setAuthMessage("Supabase Auth is not configured yet.", "error");
   }
   showLanding();
+}
+
+async function configureSupabaseAuth() {
+  if (state.supabase) return;
+  if (!window.supabase?.createClient) throw new Error("Supabase Auth client did not load.");
+
+  const response = await fetch("/api/auth/config");
+  if (!response.ok) throw new Error("Auth config is not available.");
+  const config = await response.json();
+  state.authConfigured = Boolean(config.configured);
+  if (!state.authConfigured) throw new Error("Supabase Auth environment variables are missing.");
+
+  state.supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: "pkce",
+      persistSession: true
+    }
+  });
+
+  state.supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      showApp(toAppUser(session.user));
+    } else if (document.body.classList.contains("authenticated")) {
+      showLanding();
+    }
+  });
 }
 
 function showApp(user) {
@@ -146,33 +176,45 @@ function setAuthMode(mode) {
   qs("#authPassword").autocomplete = signup ? "new-password" : "current-password";
   qs("#authTitle").textContent = signup ? "Create your workspace" : "Welcome back";
   qs("#authSubtitle").textContent = signup
-    ? "Use your email and a password to start saving assessment reports."
-    : "Sign in to continue to your assessment cockpit.";
+    ? "Create your account with Supabase Auth."
+    : "Sign in with your Supabase Auth account.";
   qs("#authSubmit").textContent = signup ? "Create account" : "Sign in";
   setAuthMessage("");
 }
 
 async function handleAuthSubmit(event) {
   event.preventDefault();
-  const endpoint = state.authMode === "signup" ? "/api/auth/signup" : "/api/auth/login";
-  const payload = {
-    email: qs("#authEmail").value,
-    password: qs("#authPassword").value
-  };
-  if (state.authMode === "signup") payload.displayName = qs("#authName").value;
+  const email = qs("#authEmail").value.trim();
+  const password = qs("#authPassword").value;
+  const displayName = qs("#authName").value.trim();
 
   qs("#authSubmit").disabled = true;
   setAuthMessage(state.authMode === "signup" ? "Creating your workspace..." : "Signing you in...");
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || "Authentication failed.");
+    await configureSupabaseAuth();
+    if (state.authMode === "signup") {
+      const { data, error } = await state.supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { display_name: displayName },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+      if (error) throw error;
+      if (data.session?.user) {
+        setAuthMessage("Account created. Opening your cockpit.", "success");
+        showApp(toAppUser(data.session.user));
+      } else {
+        setAuthMessage("Check your email to confirm your account, then sign in.", "success");
+      }
+      return;
+    }
+
+    const { data, error } = await state.supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
     setAuthMessage("Signed in. Opening your cockpit.", "success");
-    showApp(body.user);
+    showApp(toAppUser(data.user));
   } catch (error) {
     setAuthMessage(error.message, "error");
   } finally {
@@ -181,7 +223,7 @@ async function handleAuthSubmit(event) {
 }
 
 async function logout() {
-  await fetch("/api/auth/logout", { method: "POST" });
+  if (state.supabase) await state.supabase.auth.signOut();
   showView("record");
   showLanding();
   setAuthMode("login");
@@ -193,6 +235,20 @@ function setAuthMessage(text, kind = "") {
   message.classList.remove("error", "success");
   if (kind) message.classList.add(kind);
   message.textContent = text;
+}
+
+function toAppUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.user_metadata?.display_name || user.user_metadata?.name || user.email?.split("@")[0] || "Signed in user"
+  };
+}
+
+function cleanAuthUrl() {
+  if (window.location.pathname === "/auth/callback" || window.location.pathname === "/callback" || window.location.hash) {
+    window.history.replaceState({}, document.title, "/");
+  }
 }
 
 function showView(name) {
@@ -394,9 +450,13 @@ async function saveAssessment(result) {
     return;
   }
   try {
+    const token = await accessToken();
     const response = await fetch("/api/assessments", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         metadata: assessmentMetadata(),
         result
@@ -413,6 +473,13 @@ async function saveAssessment(result) {
   } catch (error) {
     updateSaveStatus("error", `Report generated, but it was not saved: ${error.message}`);
   }
+}
+
+async function accessToken() {
+  if (!state.supabase) throw new Error("Supabase Auth is not configured.");
+  const { data } = await state.supabase.auth.getSession();
+  if (!data.session?.access_token) throw new Error("Please sign in to continue.");
+  return data.session.access_token;
 }
 
 function assessmentMetadata() {

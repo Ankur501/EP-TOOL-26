@@ -16,19 +16,28 @@ Then open:
 http://127.0.0.1:4173
 ```
 
-Set `DATABASE_URL` in `.env` to your Supabase Postgres connection string before starting the app. The server creates these tables automatically on startup:
+Set these values in `.env` before starting the app:
 
-- `ep_users`
-- `ep_auth_sessions`
+- `DATABASE_URL`: Supabase Postgres connection string for report persistence.
+- `SUPABASE_URL`: your Supabase project URL.
+- `SUPABASE_ANON_KEY`: your Supabase anon public key for Supabase Auth.
+
+The server creates these report tables automatically on startup:
+
 - `ep_assessments`
 - `ep_bucket_scores`
 - `ep_parameter_scores`
 
-The app opens on a public landing page. Users can create an account or sign in; authenticated sessions are stored in HttpOnly cookies and assessment APIs require a valid session.
+The app opens on a public landing page. Users create accounts and sign in through Supabase Auth. Report APIs require a valid Supabase access token.
+
+For hosted auth redirects, add these callback URLs in Supabase Auth:
+
+- `https://ep-tool-26.vercel.app/auth/callback`
+- `https://ep-tool-26.vercel.app/callback`
 
 ## What is included
 
-- Professional landing page and account-based access layer.
+- Professional landing page and Supabase Auth access layer.
 - Recording prompt and video validation for MP4/MOV, 500 MB max, 2:00-4:00 duration.
 - Upload, camera, and demo-sample entry points.
 - Simulated async processing stages.
