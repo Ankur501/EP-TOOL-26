@@ -457,9 +457,9 @@ async function checkBackend() {
     note.classList.toggle("connected", Boolean(database.connected));
     note.classList.toggle("warning", !database.connected);
     qs("#backendStatus").textContent = database.connected
-      ? "Supabase connected. Videos stay local; reports are saved."
+      ? "Supabase connected. Reports and videos are saved."
       : database.configured
-        ? "Database configured, but connection needs attention."
+        ? `Database connection needs attention${database.error ? `: ${database.error}` : "."}`
         : "Database URL missing. Reports will not save yet.";
   } catch (_error) {
     qs(".privacy-note").classList.add("warning");
@@ -520,8 +520,36 @@ async function loadAssessmentHistory() {
     state.history = body.assessments || [];
     renderHistory();
   } catch (error) {
-    qs("#historyList").innerHTML = `<div class="history-empty error">${escapeHtml(error.message)}</div>`;
+    try {
+      state.history = await loadAssessmentHistoryFromSupabase();
+      renderHistory();
+    } catch (_fallbackError) {
+      qs("#historyList").innerHTML = `
+        <div class="history-empty error">
+          ${escapeHtml(historyErrorMessage(error.message))}
+        </div>
+      `;
+    }
   }
+}
+
+async function loadAssessmentHistoryFromSupabase() {
+  if (!state.supabase || !state.user) return [];
+  const { data, error } = await state.supabase
+    .from("ep_assessments")
+    .select("id, created_at, participant_name, voice_profile, source_kind, file_name, file_type, file_size_bytes, video_bucket, video_path, video_uploaded_at, duration_seconds, overall_score, summary")
+    .eq("user_id", state.user.id)
+    .order("created_at", { ascending: false })
+    .limit(12);
+  if (error) throw error;
+  return data || [];
+}
+
+function historyErrorMessage(message) {
+  if (message.includes("ENOTFOUND") || message.includes("getaddrinfo")) {
+    return "History could not load because the deployed database URL is invalid. Set DATABASE_URL in Vercel to the Supabase pooler connection string.";
+  }
+  return message;
 }
 
 function renderHistory() {

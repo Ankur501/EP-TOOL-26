@@ -144,3 +144,21 @@ CREATE INDEX IF NOT EXISTS ep_assessments_user_created_idx
 
 CREATE INDEX IF NOT EXISTS ep_parameter_scores_bucket_idx
   ON ep_parameter_scores (bucket_name);
+
+ALTER TABLE ep_assessments ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ep_assessments'
+      AND policyname = 'ep_assessments_select_own_rows'
+  ) THEN
+    CREATE POLICY ep_assessments_select_own_rows
+      ON ep_assessments
+      FOR SELECT
+      TO authenticated
+      USING (auth.uid() = user_id);
+  END IF;
+END $$;
